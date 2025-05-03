@@ -1,0 +1,42 @@
+name: Build and Package
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive  # 确保拉取子模块（如ZLMediaKit）
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      # 前端构建步骤（假设需要单独构建）
+      - name: Build Frontend
+        run: |
+          cd web_src  # 假设前端代码在web_src目录
+          npm install
+          npm run build
+        working-directory: ./  # 确保路径正确
+
+      - name: Build with Maven
+        run: mvn clean package -DskipTests -B
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wvp-pro-package
+          path: |
+            target/*.jar
+            target/*.war
