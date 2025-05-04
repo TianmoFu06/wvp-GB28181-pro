@@ -1,0 +1,57 @@
+name: Build and Package
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java: [ '17' ]
+        package-type: [ 'jar', 'war' ]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ matrix.java }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ matrix.java }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Configure packaging
+        id: package-config
+        run: |
+          if [ "${{ matrix.package-type }}" == "war" ]; then
+            echo "MAVEN_PROFILES=-Pwar-profile" >> $GITHUB_ENV
+            echo "Using war profile"
+          else
+            echo "MAVEN_PROFILES=" >> $GITHUB_ENV
+            echo "Using default jar packaging"
+          fi
+
+      - name: Build with Maven
+        run: mvn -B clean package -DskipTests ${{ env.MAVEN_PROFILES }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.package-type }}-${{ github.run_number }}
+          path: target/*.${{ matrix.package-type }}
+          retention-days: 3
+
+  post-check:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Show build results
+        run: |
+          echo "Build artifacts:"
+          echo "${{ needs.build.outputs.artifact-urls }}"
