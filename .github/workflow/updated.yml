@@ -1,0 +1,50 @@
+name: Build and Package
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive  # 拉取ZLMediaKit子模块
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      # 前端构建
+      - name: Build Frontend
+        run: |
+          cd web
+          npm install
+          npm run build:prod
+        working-directory: wvp-GB28181-pro  # 根据实际目录结构调整
+
+      # 生成JAR
+      - name: Build JAR
+        run: mvn package -DskipTests
+        working-directory: wvp-GB28181-pro
+
+      # 生成WAR
+      - name: Build WAR
+        run: mvn package -P war -DskipTests
+        working-directory: wvp-GB28181-pro
+
+      # 上传产物
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-outputs
+          path: |
+            wvp-GB28181-pro/target/*.jar
+            wvp-GB28181-pro/target/*.war
